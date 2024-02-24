@@ -306,27 +306,32 @@ module block_base_solid(dbnx, dbny, l, o) {
     middle_section_bottom_z = r_c1-oo;
     middle_section_height = h_base-r_c2-r_c1;
 
-    union() {
-        // Top
-        hull() {
+    // XY scale factors to apply
+    upper_middle_scale = [middle_xy[0]/upper_xy[0], middle_xy[1]/upper_xy[1]];
+    middle_lower_scale = [lower_xy[0]/middle_xy[0], lower_xy[1]/middle_xy[1]];
+
+    union(){
             // Upper Section (Extruded up beyond h_base)
             translate([0,0,upper_plane_plane_z])
             rounded_rectangle(upper_xy[0], upper_xy[1], h_bot/2+abs(10*o), r_fo1);
+
             // Upper Angled part of middle section (Extruded downwards)
             translate([0,0,upper_plane_plane_z])
             mirror([0,0,1])
-            rounded_rectangle(middle_xy[0], middle_xy[1], r_c2, r_fo2);
-        }
-        // Bottom
-        hull() {
+            linear_extrude(r_c2, scale=upper_middle_scale)
+            rounded_rectangle_2d([upper_xy[0], upper_xy[1]], r_fo1);
+
             // Middle section
             translate([0,0, middle_section_bottom_z])
-            rounded_rectangle(middle_xy[0], middle_xy[1], middle_section_height, r_fo2);
+            scale(concat(upper_middle_scale,[1]))
+            rounded_rectangle(upper_xy[0], upper_xy[1], middle_section_height, r_fo1);
+
             // Lower Angled part of middle section (Extruded downwards)
             translate([0,0,middle_section_bottom_z])
             mirror([0,0,1])
-            rounded_rectangle(lower_xy[0], lower_xy[1], middle_section_bottom_z, r_fo3);
-        }
+            linear_extrude(middle_section_bottom_z, scale=middle_lower_scale)
+            scale(concat(upper_middle_scale,[1]))
+            rounded_rectangle_2d([upper_xy[0], upper_xy[1]], r_fo1);
     }
 }
 
@@ -623,11 +628,21 @@ module profile_cutter_tab(h, tab, ang) {
 
 function clp(x,a,b) = min(max(x,a),b);
 
-module rounded_rectangle(length, width, height, rad) {
-    linear_extrude(height)
+/**
+ * @brief 2 dimensional rounded rectangle
+ * @param dimensions [Length, Width] of the resulting rectangle
+ */
+module rounded_rectangle_2d(dimensions, rad) {
+    assert(is_list(dimensions), "rounded_rectangle_2d: dimensions must be a vector")
+    assert(!is_undef(rad), "rounded_rectangle_2d: rad must be defined")
     offset(rad)
     offset(-rad)
-    square([length,width], center = true);
+    square(dimensions, center = true);
+}
+
+module rounded_rectangle(length, width, height, rad) {
+    linear_extrude(height)
+    rounded_rectangle_2d([length, width], rad);
 }
 
 module rounded_square(length, height, rad) {
