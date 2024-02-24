@@ -296,18 +296,25 @@ module block_base_solid(dbnx, dbny, l, o) {
     xx = dbnx*l-0.05;
     yy = dbny*l-0.05;
     oo = (o/2)*(sqrt(2)-1);
+
+    upper_xy = [xx+o, yy+o];
+    middle_xy = [upper_xy[0]-2*r_c2, upper_xy[1]-2*r_c2];
+    lower_xy = [middle_xy[0]-2*r_c1, middle_xy[1]-2*r_c1];
+
     translate([0,0,h_base])
     mirror([0,0,1])
     union() {
+        // Bottom
         hull() {
-            rounded_rectangle(xx-2*r_c2-2*r_c1+o, yy-2*r_c2-2*r_c1+o, h_base+oo, r_fo3);
-            rounded_rectangle(xx-2*r_c2+o, yy-2*r_c2+o, h_base-r_c1+oo, r_fo2);
+            rounded_rectangle(lower_xy[0], lower_xy[1], h_base+oo, r_fo3);
+            rounded_rectangle(middle_xy[0], middle_xy[1], h_base-r_c1+oo, r_fo2);
         }
+        //Top
         translate([0,0,oo])
         hull() {
-            rounded_rectangle(xx-2*r_c2+o, yy-2*r_c2+o, r_c2, r_fo2);
+            rounded_rectangle(middle_xy[0], middle_xy[1], r_c2, r_fo2);
             mirror([0,0,1])
-            rounded_rectangle(xx+o, yy+o, h_bot/2+abs(10*o), r_fo1);
+            rounded_rectangle(upper_xy[0], upper_xy[1], h_bot/2+abs(10*o), r_fo1);
         }
     }
 }
