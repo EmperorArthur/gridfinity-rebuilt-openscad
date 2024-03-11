@@ -5,6 +5,7 @@
  */
 
 include <standard.scad>
+include <gridfinity-stacking-lip-constants.scad>
 
 // ===== User Modules ===== //
 
@@ -361,51 +362,53 @@ module refined_hole() {
 }
 
 /**
- * @brief Stacking lip based on https://gridfinity.xyz/specification/
- * @details Also includes a support base.
- */
-module stacking_lip() {
-    // Technique: Descriptive constant names are useful, but can be unweildy.
-    // Use abbreviations if they are going to be re-used repeatedly in a small piece of code.
-    inner_slope = stacking_lip_inner_slope_height_mm;
-    wall_height = stacking_lip_wall_height_mm;
-
-    support_wall = stacking_lip_support_wall_height_mm;
-    s_total = stacking_lip_support_height_mm;
-
-    polygon([
-        [0, 0], // Inner tip
-        [inner_slope, inner_slope], // Go out 45 degrees
-        [inner_slope, inner_slope+wall_height], // Vertical increase
-        [stacking_lip_depth, stacking_lip_height], // Go out 45 degrees
-        [stacking_lip_depth, -s_total], // Down to support bottom
-        [0, -support_wall], // Up and in
-        [0, 0] // Close the shape. Tehcnically not needed.
-    ]);
-}
-
-/**
  * @brief Stacking lip with a with a chamfered (rounded) top.
  * @details Based on https://gridfinity.xyz/specification/
  *          Also includes a support base.
  */
 module stacking_lip_chamfered() {
-    radius_center_y = h_lip - r_f1;
+    // Replace 2D edge with a radius.
+    // Method used: tangent, tangent, radius algorithm
+    // See:  https://math.stackexchange.com/questions/797828/calculate-center-of-circle-tangent-to-two-lines-in-space
+    before_chamfer = stacking_lip_points[2];
+    to_chamfer = stacking_lip_points[3]; // tip, Point to Chamfer
+    after_chamfer = stacking_lip_points[4];
+
+    chamfer_vectors = [
+        to_chamfer - before_chamfer,
+        after_chamfer - to_chamfer,
+        ];
+
+    to_chamfer_angle = 180 +
+        atan2(
+            cross(chamfer_vectors[0], chamfer_vectors[1]),
+            chamfer_vectors[0] * chamfer_vectors[1]
+        );
+    half_angle = to_chamfer_angle / 2;
+
+    // Distance from tip to the center point of the circle.
+    distance_from_edge = r_f1 / sin(half_angle);
+
+    // Circle's center point
+    chamfer_center_vector = [
+        distance_from_edge * sin(half_angle),
+        distance_from_edge * cos(half_angle)
+    ];
+    chamfer_center_point = to_chamfer - chamfer_center_vector;
+
+    // Exact point edges intersect the circle
+    intersection_distance = distance_from_edge * cos(half_angle);
 
     union() {
-        // Create rounded top
-        intersection() {
-            translate([0, radius_center_y, 0])
-            square([stacking_lip_depth, stacking_lip_height]);
-            offset(r = r_f1)
-            offset(delta = -r_f1)
-            stacking_lip();
-        }
-        // Remove pointed top
+        // Rounded top chamfer
+        translate(concat(chamfer_center_point, [0]))
+        circle(r = r_f1);
+
+        // Stacking lip with cutout for circle to fit in
         difference(){
-            stacking_lip();
-            translate([0, radius_center_y, 0])
-            square([stacking_lip_depth*2, stacking_lip_height*2]);
+            polygon(stacking_lip_points);
+            translate([to_chamfer.x, to_chamfer.y, 0])
+            circle(r = intersection_distance);
         }
     }
 }
