@@ -53,7 +53,7 @@ d_tabw = 42;
 // angle of tab
 a_tab = 36;
 // lip height
-h_lip = 3.548;
+h_lip = 3.55147;
 
 d_wall2 = r_base-r_c1-d_clear*sqrt(2);
 d_magic = -2*d_clear-2*d_wall+d_div;

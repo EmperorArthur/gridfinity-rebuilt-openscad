@@ -396,6 +396,9 @@ module stacking_lip_chamfered() {
     ];
     chamfer_center_point = to_chamfer - chamfer_center_vector;
 
+    // This should equal h_lip!
+//    echo(chamfer_center_point.y + r_f1);
+
     // Exact point edges intersect the circle
     intersection_distance = distance_from_edge * cos(half_angle);
 
