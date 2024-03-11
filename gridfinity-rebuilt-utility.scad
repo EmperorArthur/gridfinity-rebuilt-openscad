@@ -422,8 +422,8 @@ module profile_wall(height_mm) {
     translate([r_base - stacking_lip_depth, 0, 0]){
         translate([0, height_mm, 0])
         stacking_lip_chamfered();
-        translate([stacking_lip_depth-d_wall/2, 0, 0])
-        square([d_wall/2, height_mm]);
+        translate([stacking_lip_depth-d_wall, 0, 0])
+        square([d_wall, height_mm]);
     }
 }
 
