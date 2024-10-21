@@ -1,0 +1,59 @@
+// https://github.com/openscad/openscad/wiki/CSG-File-Format
+// https://github.com/lark-parser/lark/blob/master/docs/json_tutorial.md
+
+%import common.C_COMMENT // @todo
+%import common.ESCAPED_STRING   -> STRING
+%import common.SIGNED_INT
+%import common.SIGNED_FLOAT
+%import common.LETTER
+%import common.DIGIT
+%import common.WS
+
+%ignore WS
+%ignore C_COMMENT
+
+// Used for the indenter
+%declare _INDENT _DEDENT
+
+
+// No ambiguity with NAME, since they can never be used in the same place.
+TRUE: "true"
+FALSE: "false"
+UNDEF: "undef"
+
+NAME: ("_"|"$"|LETTER) ("_"|LETTER|DIGIT)*
+
+_value: value_function
+     | array
+     | SIGNED_INT
+     | SIGNED_FLOAT
+     | TRUE
+     | FALSE
+     | UNDEF
+     | STRING
+
+array: "[" (_value ("," _value)*)? "]"
+
+// A function that returns a _value.
+// Not part of the CSG spec, but is part of the SCAD specification
+value_function: NAME "(" arguments ")"
+
+
+
+// These could be one thing, but it's easier to deal with as separate items
+positional_argument: _value
+named_argument: NAME "=" _value
+_argument: named_argument | positional_argument
+arguments: "(" (_argument ("," _argument)*)? ")"
+
+scope: "{" (call (call)*)? "}"
+
+// Anything that can be called, including the appropriate block / terminator.
+?call: object | module
+
+object: NAME arguments ";" // Generic object with no more transformations applied.
+module: NAME arguments scope
+
+
+// Default starting rule
+start: (call | scope)*
