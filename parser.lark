@@ -56,4 +56,4 @@ module: NAME arguments scope
 
 
 // Default starting rule
-start: (call | scope)*
+start: (call)*

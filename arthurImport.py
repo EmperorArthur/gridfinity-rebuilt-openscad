@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pprint import pprint
 from typing import Any, Optional, Union
 from types import FunctionType
+from itertools import chain
 
 
 #https://github.com/lark-parser/lark/blob/master/docs/json_tutorial.md
@@ -36,6 +37,17 @@ class CsgTerminalTransformer(Transformer):
     def UNDEF(self, token: lark.lexer.Token):
         return token.update(value=None)
 
+
+def empty_ast_args(splat):
+    """Helper function for empty ast.arguments"""
+    return ast.arguments(
+        posonlyargs=[],
+        args=[],
+        kwonlyargs=[],
+        kw_defaults=[],
+        defaults=[],
+        **splat
+    )
 
 class CsgToPythonAst(CsgTerminalTransformer):
     """Convert A Csg Tree to Python ast"""
@@ -82,42 +94,50 @@ class CsgToPythonAst(CsgTerminalTransformer):
         return list(filter(lambda i: not isinstance(i, ast.keyword), children)), \
                list(filter(lambda i: isinstance(i, ast.keyword), children))
     @v_args(tree=True)
-    def scope(self, tree: lark.tree.Tree):
+    def scope(self, tree: lark.tree.Tree) -> tuple[ast.FunctionDef, ast.keyword]:
+        """
+        Python doesn't have the concept of anonymous scopes or multi-line lambdas.
+        Instead use a function definition and a keyword argument to call said definition.
+        """
         splat = self._ast_splat(tree.data)
-        return ast.keyword(arg='__children__', value=ast.List(elts=tree.children, ctx=ast.Load(), **splat), **splat)
+        calls = list(chain.from_iterable(tree.children))
+        scope_id = f"__children_{abs(hash(str(calls)))}"
+        children = ast.FunctionDef(name=scope_id, body=calls,
+            args=empty_ast_args(splat), decorator_list=[], **splat)
+        keyword = ast.keyword(arg='__children', value=ast.Name(id=scope_id, ctx=ast.Load(), **splat), **splat)
+        return children, keyword
     @v_args(tree=True)
-    def object(self, tree: lark.tree.Tree):
+    def object(self, tree: lark.tree.Tree) -> tuple[ast.Expr]:
         assert len(tree.children) == 2
         splat = self._ast_splat(tree.data)
         name = ast.Name(id=tree.children[0].value, ctx=ast.Load(), **splat)
         args, kwargs = tree.children[1]
-        return ast.Call(func=name, args=args, keywords=kwargs, **splat)
+        return tuple([ast.Expr(value=ast.Call(func=name, args=args, keywords=kwargs, **splat), **splat)])
     @v_args(tree=True)
-    def module(self, tree: lark.tree.Tree):
+    def module(self, tree: lark.tree.Tree) -> tuple[ast.FunctionDef, ast.Expr]:
         """
         A module is just a function call where one variable is passed in differently.
-        Instead of accessing it as a normal variable, it's accessed by the "children();" call.
+        The scope that comes after the function "{...}" can be thought of as a multi-line anonymous function/lambda
+        that is accessed by the "children();" call.
         """
         assert len(tree.children) == 3
         splat = self._ast_splat(tree.data)
         name = ast.Name(id=tree.children[0].value, ctx=ast.Load(), **splat)
         args, kwargs = tree.children[1]
-        scope = tree.children[2]
-        return CsgModule(func=name, args=args, keywords=kwargs + [scope], **splat)
+        children, scope_keyword = tree.children[2]
+        return children, \
+            ast.Expr(value=ast.Call(func=name, args=args, keywords=kwargs + [scope_keyword], **splat), **splat)
     @v_args(tree=True)
     def start(self, tree: lark.tree.Tree):
-        splat = self._ast_splat(tree.data)
-        if len(tree.children) == 0:
-            return ast.Expression(**splat)
-        if len(tree.children) == 1:
-            return ast.Expression(tree.children[0], **splat)
-        return ast.Expression(ast.List(tree.children, **splat), **splat)
+        calls = list(chain.from_iterable(tree.children))
+        return ast.Module(body=calls, type_ignores=[], **self._ast_splat(tree.data))
 
 csg_python_ast = CsgToPythonAst().transform(parsed)
 debug_view = ast.dump(csg_python_ast, indent=1, include_attributes=True)
 raw_csg_python = ast.unparse(csg_python_ast)
 formatted_csg_python = black.format_str(raw_csg_python, mode=black.Mode())
 
+out_path.write_text(debug_view)
 out_path.write_text(raw_csg_python)
 out_path.write_text(formatted_csg_python)
 
@@ -126,6 +146,8 @@ for i in range(9):
     node = node.keywords[0].value.elts[0]
 n = ast.parse('print()', mode='eval')
 co = compile(ast.Expression(node), '-', mode='eval')
+
+co = compile(csg_python_ast, '-', mode='exec')
 fn = FunctionType(code=co, globals={})
 fn()
 
@@ -196,8 +218,7 @@ out_path = Path('out.txt')
 
 
 def run_lark():
-    #parser = Lark(larkfile_path.read_text(), strict=True)
-    parser = Lark(larkfile_path.read_text(), parser='lalr', transformer=CsgTerminalTransformer())
+    parser = Lark(larkfile_path.read_text(), parser='lalr', transformer=CsgTerminalTransformer(), strict=True)
     parsed = parser.parse(file_path.read_text())
     out_path.write_text(parsed.pretty(' '))
     #pprint(t)
