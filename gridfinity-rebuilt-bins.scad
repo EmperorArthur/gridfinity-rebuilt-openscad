@@ -31,6 +31,7 @@ use <src/core/cutouts.scad>
 use <src/helpers/generic-helpers.scad>
 use <src/helpers/grid.scad>
 use <src/helpers/grid_element.scad>
+use <src/helpers/generic-helpers.scad>
 
 // ===== PARAMETERS ===== //
 
@@ -45,8 +46,19 @@ gridx = 3;
 gridy = 2;
 // bin height. See bin height information and "gridz_define" below.
 gridz = 6; //.1
+
 // Half grid sized bins.  Implies "only corners".
 half_grid = false;
+
+/* [Height] */
+// How "gridz" is used to calculate height.  Some exclude 7mm/1U base, others exclude ~3.5mm (4.4mm nominal) stacking lip.
+gridz_define = 0; // [0:Units of 7mm increments - Zack's method - (Excludes Stacking Lip), 1:Internal mm - (Excludes Base & Stacking Lip), 2:External mm - (Excludes Stacking Lip)]
+// overrides internal block height of bin (for solid containers). Leave zero for default height. Units: mm
+height_internal = 0;
+// snap gridz height to nearest 7mm increment
+enable_zsnap = false;
+// If the top lip should exist.  Not included in height calculations.
+include_lip = true;
 
 /* [Compartments] */
 // number of X Divisions (set to zero to have solid bin)
@@ -64,21 +76,11 @@ cd = 10; // .1
 // chamfer around the top rim of the holes
 c_chamfer = 0.5; // .1
 
-/* [Height] */
-// determine what the variable "gridz" applies to based on your use case
-gridz_define = 0; // [0:gridz is the height of bins in units of 7mm increments - Zack's method,1:gridz is the internal height in millimeters, 2:gridz is the overall external height of the bin in millimeters]
-// overrides internal block height of bin (for solid containers). Leave zero for default height. Units: mm
-height_internal = 0;
-// snap gridz height to nearest 7mm increment
-enable_zsnap = false;
-
 /* [Compartment Features] */
 // the type of tabs
 style_tab = 1; //[0:Full,1:Auto,2:Left,3:Center,4:Right,5:None]
 // which divisions have tabs
 place_tab = 0; // [0:Everywhere-Normal,1:Top-Left Division]
-// how should the top lip act
-style_lip = 0; //[0: Regular lip, 1:remove lip subtractively, 2: remove lip and retain height]
 // scoop weight percentage. 0 disables scoop, 1 is regular scoop. Any real number will scale the scoop.
 scoop = 1; //[0:0.1:1]
 
@@ -106,9 +108,9 @@ hole_options = bundle_hole_options(refined_holes, magnet_holes, screw_holes, cru
 
 bin1 = new_bin(
     grid_size = [gridx, gridy],
-    height_mm = height(gridz, gridz_define, style_lip, enable_zsnap),
+    height_mm = height(gridz, gridz_define, enable_zsnap),
     fill_height = height_internal,
-    include_lip = style_lip == 0,
+    include_lip = include_lip,
     hole_options = hole_options,
     only_corners = only_corners || half_grid,
     thumbscrew = enable_thumbscrew,
@@ -117,8 +119,9 @@ bin1 = new_bin(
 
 echo(str(
     "\n",
-    "Infill Dimensions: ", bin_get_infill_size_mm(bin1), "\n",
-    "Final Size: ", bin_get_bounding_box(bin1), "\n",
+    "Infill Dimensions*: ", bin_get_infill_size_mm(bin1), "\n",
+    "Bounding Box: ", bin_get_bounding_box(bin1), "\n",
+    "  *Excludes Stacking Lip Support Height (if stacking lip enabled)\n",
 ));
 echo("Height breakdown:");
 pprint(bin_get_height_breakdown(bin1));
