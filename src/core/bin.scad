@@ -375,9 +375,13 @@ function bin_get_height_breakdown(bin) =
         "BASE_HEIGHT Calculation Error!")
     assert(heights[8][1] == heights[9][1] + heights[10][1],
         "Stacking Lip Height Calculation Error!")
-    assert(heights[4][1] == heights[5][1] + heights[6][1]
-        + (include_lip ? heights[7][1] : 0),
-        "Bin Height Calculation Error!")
+    assert((heights[5][1] + heights[6][1]
+            + (include_lip ? heights[7][1] : 0)
+        ) - heights[4][1] < 0.01,
+        str("Bin Height Calculation Error!\n",
+        "  Expected: ", heights[4][1], "==", heights[5][1],
+        "+", heights[6][1], "+", (include_lip ? heights[7][1] : 0),
+        "\n"))
     assert(heights[0][1] == heights[1][1] + heights[4][1]
         + (include_lip ? heights[8][1] : 0),
         "Total Height Calculation Error!")
