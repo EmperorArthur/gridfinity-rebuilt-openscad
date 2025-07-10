@@ -145,9 +145,9 @@ bin_render(bin1) {
 // ===== EXAMPLES ===== //
 /*
 // 1x1 bin
-bin_11 = new_bin([1, 1], height(2));
+bin_11 = new_bin([1, 1], fromGridfinityUnits(2));
 // 3x3 bin
-bin_33 = new_bin([3, 3], height(6));
+bin_33 = new_bin([3, 3], fromGridfinityUnits(6));
 
 //Vary radius per child
 translate([150, 200, 0])
@@ -259,7 +259,7 @@ bin_render(bin_33) {
 }
 
 // Pyramid scheme bin
-bin_44 = new_bin([4, 4], height(6));
+bin_44 = new_bin([4, 4], fromGridfinityUnits(6));
 
 translate([-200, -200, 0])
 bin_render(bin_44) {
